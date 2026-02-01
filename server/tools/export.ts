@@ -46,12 +46,16 @@ export function registerExportTools() {
           throw new Error("Failed to compile model to geometry JSON format.");
         }
 
-        // Return the JSON string
-        const jsonString = pretty
-          ? JSON.stringify(geoJson, null, 2)
-          : JSON.stringify(geoJson);
+        // compile() returns a string, parse and re-stringify for pretty printing if needed
+        if (typeof geoJson === "string") {
+          if (pretty) {
+            return JSON.stringify(JSON.parse(geoJson), null, 2);
+          }
+          return geoJson;
+        }
 
-        return jsonString;
+        // If it's an object, stringify it
+        return pretty ? JSON.stringify(geoJson, null, 2) : JSON.stringify(geoJson);
       },
     },
     STATUS_STABLE
@@ -96,10 +100,13 @@ export function registerExportTools() {
           throw new Error("Failed to compile model to geometry JSON format.");
         }
 
-        // Format the JSON
-        const jsonString = pretty
-          ? JSON.stringify(geoJson, null, 2)
-          : JSON.stringify(geoJson);
+        // Handle both string and object return types from compile()
+        let jsonString: string;
+        if (typeof geoJson === "string") {
+          jsonString = pretty ? JSON.stringify(JSON.parse(geoJson), null, 2) : geoJson;
+        } else {
+          jsonString = pretty ? JSON.stringify(geoJson, null, 2) : JSON.stringify(geoJson);
+        }
 
         // Ensure path ends with .geo.json
         const filePath = path.endsWith(".geo.json")
@@ -159,8 +166,8 @@ export function registerExportTools() {
         const previousFormat = Format?.id ?? "unknown";
 
         // Convert the project to the new format
-        // @ts-ignore - convertTo method exists on Project
-        Project.convertTo(targetFormat);
+        // @ts-ignore - convertTo method exists on ModelFormat
+        targetFormat.convertTo();
 
         return `Successfully converted project from "${previousFormat}" to "${format}" format.`;
       },

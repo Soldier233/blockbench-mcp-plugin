@@ -70,32 +70,52 @@ export function registerProjectTools() {
           throw new Error(`Failed to parse file as JSON: ${path}`);
         }
 
-        // Try to find the appropriate codec
+        // Determine the codec and format to use
+        let codec: Codec;
+        let format: ModelFormat;
+
         if (ext === ".bbmodel" || parsed.meta?.model_format) {
           // Native Blockbench format
           // @ts-ignore - Codecs is globally available
-          Codecs.project.parse(parsed, path);
+          codec = Codecs.project;
+          // @ts-ignore - Formats is globally available
+          format = Formats[parsed.meta?.model_format] ?? Formats.free;
         } else if (ext === ".geo.json" || parsed["minecraft:geometry"] || parsed.format_version) {
           // Bedrock geometry format
           // @ts-ignore - Codecs is globally available
-          Codecs.bedrock.parse(parsed, path);
+          codec = Codecs.bedrock;
+          // @ts-ignore - Formats is globally available
+          format = Formats.bedrock;
         } else if (ext === ".json" && (parsed.elements || parsed.textures)) {
           // Java block/item model format
           // @ts-ignore - Codecs is globally available
-          Codecs.java_block.parse(parsed, path);
+          codec = Codecs.java_block;
+          // @ts-ignore - Formats is globally available
+          format = Formats.java_block;
         } else if (ext === ".jem" || ext === ".jpm") {
           // OptiFine format
           // @ts-ignore - Codecs is globally available
           if (Codecs.optifine_entity) {
-            Codecs.optifine_entity.parse(parsed, path);
+            codec = Codecs.optifine_entity;
+            // @ts-ignore - Formats is globally available
+            format = Formats.optifine_entity;
           } else {
             throw new Error("OptiFine codec is not available.");
           }
         } else {
           // Try project codec as fallback
           // @ts-ignore - Codecs is globally available
-          Codecs.project.parse(parsed, path);
+          codec = Codecs.project;
+          // @ts-ignore - Formats is globally available
+          format = Formats.free;
         }
+
+        // Create a new project to avoid merging with existing data
+        newProject(format);
+
+        // Parse the content into the new project
+        // @ts-ignore - parse method exists on Codec
+        codec.parse(parsed, path);
 
         return `Opened project: ${path} (UUID: ${Project?.uuid})`;
       },
@@ -188,24 +208,35 @@ export function registerProjectTools() {
               continue;
             }
 
-            // Determine the codec to use
+            // Determine the codec and format to use
+            let codec: Codec;
+            let format: ModelFormat;
+
             if (filePath.endsWith(".bbmodel") || parsed.meta?.model_format) {
               // @ts-ignore - Codecs is globally available
-              Codecs.project.parse(parsed, filePath);
+              codec = Codecs.project;
+              // @ts-ignore - Formats is globally available
+              format = Formats[parsed.meta?.model_format] ?? Formats.free;
             } else if (
               filePath.endsWith(".geo.json") ||
               parsed["minecraft:geometry"] ||
               parsed.format_version
             ) {
               // @ts-ignore - Codecs is globally available
-              Codecs.bedrock.parse(parsed, filePath);
+              codec = Codecs.bedrock;
+              // @ts-ignore - Formats is globally available
+              format = Formats.bedrock;
             } else if (ext === ".json" && (parsed.elements || parsed.textures)) {
               // @ts-ignore - Codecs is globally available
-              Codecs.java_block.parse(parsed, filePath);
+              codec = Codecs.java_block;
+              // @ts-ignore - Formats is globally available
+              format = Formats.java_block;
             } else if (ext === ".jem" || ext === ".jpm") {
               // @ts-ignore - Codecs is globally available
               if (Codecs.optifine_entity) {
-                Codecs.optifine_entity.parse(parsed, filePath);
+                codec = Codecs.optifine_entity;
+                // @ts-ignore - Formats is globally available
+                format = Formats.optifine_entity;
               } else {
                 errors.push(`OptiFine codec not available for: ${filePath}`);
                 continue;
@@ -213,8 +244,17 @@ export function registerProjectTools() {
             } else {
               // Try project codec as fallback
               // @ts-ignore - Codecs is globally available
-              Codecs.project.parse(parsed, filePath);
+              codec = Codecs.project;
+              // @ts-ignore - Formats is globally available
+              format = Formats.free;
             }
+
+            // Create a new project to avoid merging with existing data
+            newProject(format);
+
+            // Parse the content into the new project
+            // @ts-ignore - parse method exists on Codec
+            codec.parse(parsed, filePath);
 
             results.push(pathModule.basename(filePath));
           } catch (err) {
