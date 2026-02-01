@@ -16,6 +16,7 @@ import { registerTextureTools } from "./tools/texture";
 import { registerUITools } from "./tools/ui";
 import { registerUVTools } from "./tools/uv";
 import { registerMaterialInstanceTools } from "./tools/material-instances";
+import { registerExportTools } from "./tools/export";
 
 // Optional plugin integrations (conditionally registered)
 import { registerHytaleTools } from "./tools/hytale";
@@ -28,6 +29,7 @@ const registrationFunctions = [
   registerCameraTools,
   registerCubesTools,
   registerElementTools,
+  registerExportTools,
   registerImportTools,
   registerMaterialInstanceTools,
   registerMeshTools,
