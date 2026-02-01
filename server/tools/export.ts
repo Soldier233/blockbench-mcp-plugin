@@ -147,7 +147,7 @@ export function registerExportTools() {
       },
       parameters: z.object({
         format: z
-          .string()
+          .string().default("bedrock")
           .describe("The target format ID to convert to. Use 'list_formats' tool to see all available format IDs."),
       }),
       async execute({ format }) {
