@@ -830,4 +830,99 @@ createTool(
   },
   STATUS_EXPERIMENTAL
 );
+
+createTool(
+  "export_textures",
+  {
+    description:
+      "Exports all textures from the current project to a specified folder. Each texture is saved as a PNG file using its name.",
+    annotations: {
+      title: "Export Textures",
+      openWorldHint: true,
+    },
+    parameters: z.object({
+      folder: z.string().describe("The folder path where textures should be exported."),
+      prefix: z
+        .string()
+        .optional()
+        .describe("Optional prefix to add to all texture filenames."),
+      overwrite: z
+        .boolean()
+        .default(true)
+        .describe("Whether to overwrite existing files with the same name."),
+    }),
+    async execute({ folder, prefix, overwrite }) {
+      const textures = Project?.textures ?? Texture.all;
+
+      if (!textures || textures.length === 0) {
+        throw new Error("No textures found in the current project.");
+      }
+
+      // @ts-ignore - fs is available via requireNativeModule shim
+      const fs = require("fs");
+      // @ts-ignore - path module
+      const pathModule = require("path");
+
+      // Ensure folder exists
+      if (!fs.existsSync(folder)) {
+        fs.mkdirSync(folder, { recursive: true });
+      }
+
+      const results: string[] = [];
+      const errors: string[] = [];
+
+      for (const texture of textures) {
+        try {
+          // Get texture name, sanitize for filename
+          let fileName = texture.name || texture.uuid;
+          // Remove file extension if present, we'll add .png
+          fileName = fileName.replace(/\.(png|jpe?g|gif|bmp|tga|tiff?)$/i, "");
+
+          if (prefix) {
+            fileName = `${prefix}${fileName}`;
+          }
+          fileName = `${fileName}.png`;
+
+          const filePath = pathModule.join(folder, fileName);
+
+          // Check if file exists and overwrite is false
+          if (!overwrite && fs.existsSync(filePath)) {
+            errors.push(`Skipped (exists): ${fileName}`);
+            continue;
+          }
+
+          // Get the texture data URL and convert to buffer
+          const dataUrl = texture.getDataURL();
+          if (!dataUrl) {
+            errors.push(`No data: ${texture.name}`);
+            continue;
+          }
+
+          // Remove the data URL prefix to get base64 data
+          const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+          const buffer = Buffer.from(base64Data, "base64");
+
+          // Write the file
+          fs.writeFileSync(filePath, buffer);
+          results.push(fileName);
+        } catch (err) {
+          errors.push(
+            `Error exporting ${texture.name}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+      }
+
+      let output = `Exported ${results.length} texture(s) to: ${folder}`;
+      if (results.length > 0) {
+        output += `\n\nExported files:\n${results.map((f) => `  - ${f}`).join("\n")}`;
+      }
+      if (errors.length > 0) {
+        output += `\n\nErrors/Skipped (${errors.length}):\n${errors.map((e) => `  - ${e}`).join("\n")}`;
+      }
+
+      return output;
+    },
+  },
+  STATUS_STABLE
+);
 }
